@@ -114,6 +114,65 @@ test "session reducer ignores a valid duplicate and applies sequence reset" {
 }
 
 ///|
+test "reset mode ignores MsgSeqNum while gap fill follows session ordering" {
+  let initial = match @moonfix.new_session_state("FIX.4.4", 1, 1) {
+    Ok(value) => value
+    Err(error) => fail(error.detail)
+  }
+  let active = match @moonfix.apply_inbound(initial, logon_message("1")) {
+    Ok(value) => value.state
+    Err(error) => fail(error.detail)
+  }
+  let reset = @moonfix.message("FIX.4.4", [
+    { tag: 35, value: "4", },
+    { tag: 34, value: "40", },
+    { tag: 36, value: "8", },
+    { tag: 123, value: "N", },
+  ])
+  let reset_result = match @moonfix.apply_inbound(active, reset) {
+    Ok(value) => value
+    Err(error) => fail(error.detail)
+  }
+  assert_true(reset_result.accepted)
+  assert_eq(reset_result.state.next_inbound_seq, 8)
+
+  let gap_fill_gap = @moonfix.message("FIX.4.4", [
+    { tag: 35, value: "4", },
+    { tag: 34, value: "40", },
+    { tag: 36, value: "8", },
+    { tag: 123, value: "Y", },
+  ])
+  let gap_result = match @moonfix.apply_inbound(active, gap_fill_gap) {
+    Ok(value) => value
+    Err(error) => fail(error.detail)
+  }
+  assert_true(!gap_result.accepted)
+  assert_eq(gap_result.state.next_inbound_seq, 2)
+  assert_true(gap_result.actions[0] is @moonfix.SendMessage(_))
+}
+
+///|
+test "sequence reset rejects a NewSeqNo that does not move forward" {
+  let initial = match @moonfix.new_session_state("FIX.4.4", 1, 1) {
+    Ok(value) => value
+    Err(error) => fail(error.detail)
+  }
+  let active = match @moonfix.apply_inbound(initial, logon_message("1")) {
+    Ok(value) => value.state
+    Err(error) => fail(error.detail)
+  }
+  let reset = @moonfix.message("FIX.4.4", [
+    { tag: 35, value: "4", },
+    { tag: 34, value: "40", },
+    { tag: 36, value: "2", },
+  ])
+  match @moonfix.apply_inbound(active, reset) {
+    Ok(_) => fail("reset mode must advance beyond the next expected sequence")
+    Err(error) => assert_true(error.kind is @moonfix.InvalidReset)
+  }
+}
+
+///|
 test "session reducer terminates on logout and rejects invalid logon heartbeat" {
   let state = match @moonfix.new_session_state("FIX.4.4", 1, 1) {
     Ok(value) => value

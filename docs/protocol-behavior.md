@@ -16,7 +16,7 @@ parse_group 使用调用方提供的 count tag、delimiter、成员顺序和最�
 
 ## 会话 reducer
 
-apply_inbound 是确定性状态转换：输入旧 SessionState 与一条消息，结果是新状态及有序 SessionAction。它不执行 socket I/O、等待或定时器。已实现消息类型和分支以 session.mbt 与 session_test.mbt 为准；未实现的交易生命周期能力不由 reducer 暗示支持。
+apply_inbound 是确定性状态转换：输入旧 SessionState 与一条消息，结果是新状态及有序 SessionAction。它不执行 socket I/O、等待或定时器。SequenceReset 的 GapFill 模式（`123=Y`）遵守普通入站序号顺序；Reset 模式（`123=N` 或省略）忽略 `MsgSeqNum` 的会话顺序判定，但要求 `NewSeqNo` 大于当前期望序号并推进状态。该 reducer 不实现完整交易生命周期。
 
 ## Capture 审计与 CLI
 

@@ -241,6 +241,47 @@ pub fn apply_inbound(
         ),
       )
   }
+  if msg_type == "4" {
+    let gap_fill = match session_field(input, 123) {
+      Some("Y") => true
+      Some("N") | None => false
+      Some(_) =>
+        return Err(
+          session_error(InvalidSessionField, 123, "GapFillFlag must be Y or N"),
+        )
+    }
+    if !gap_fill {
+      if state.status is AwaitingLogon {
+        return Err(
+          session_error(
+            InvalidTransition,
+            35,
+            "SequenceReset requires an established session",
+          ),
+        )
+      }
+      let new_seq = match session_int(input, 36) {
+        Some(value) if value > state.next_inbound_seq => value
+        _ =>
+          return Err(
+            session_error(
+              InvalidReset,
+              36,
+              "Reset-mode NewSeqNo must exceed the next expected sequence",
+            ),
+          )
+      }
+      let next = with_sequences(
+        state,
+        new_seq,
+        state.next_outbound_seq,
+        state.status,
+        state.heartbeat_seconds,
+        state.pending_test_request,
+      )
+      return Ok(session_transition(next, true, [SequenceAdvanced(new_seq)]))
+    }
+  }
   if seq < state.next_inbound_seq {
     let possible_duplicate = session_field(input, 43) == Some("Y")
     let original_time_present = session_field(input, 122) is Some(_)
@@ -424,25 +465,14 @@ pub fn apply_inbound(
       Ok(session_transition(next, true, [ResendRequested(begin_seq, end_seq)]))
     }
     "4" => {
-      match session_field(input, 123) {
-        Some("Y") | Some("N") | None => ()
-        Some(_) =>
-          return Err(
-            session_error(
-              InvalidSessionField,
-              123,
-              "GapFillFlag must be Y or N",
-            ),
-          )
-      }
       let new_seq = match session_int(input, 36) {
-        Some(value) if value > seq => value
+        Some(value) if value > state.next_inbound_seq => value
         _ =>
           return Err(
             session_error(
               InvalidReset,
               36,
-              "SequenceReset NewSeqNo must exceed MsgSeqNum",
+              "GapFill NewSeqNo must exceed the next expected sequence",
             ),
           )
       }
