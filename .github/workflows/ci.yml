@@ -1,0 +1,61 @@
+name: MoonBit CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  moonbit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install MoonBit
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+      - name: Record toolchain
+        run: moon version --all
+      - name: Format and generate interfaces
+        run: |
+          moon fmt
+          moon info
+          git diff --exit-code -- '*.mbti'
+      - name: Check and test supported targets
+        run: |
+          moon check --target wasm
+          moon test --target wasm
+          moon build --target wasm
+          moon check --target wasm-gc
+          moon test --target wasm-gc
+          moon build --target wasm-gc
+          moon check --target js
+          moon test --target js
+          moon build --target js
+      - name: Verify Node capture CLI
+        run: |
+          moon check cmd/main --target js --deny-warn
+          moon build cmd/main --target js
+          moon run cmd/main --target js -- examples/heartbeat.fix
+          invalid_capture="$(mktemp)"
+          trap 'rm -f "$invalid_capture"' EXIT
+          node -e 'const fs = require("node:fs"); const p = process.argv[1]; const b = fs.readFileSync("examples/heartbeat.fix"); const end = b.length - 2; b[end] = b[end] === 48 ? 49 : 48; fs.writeFileSync(p, b);' "$invalid_capture"
+          set +e
+          moon run cmd/main --target js -- "$invalid_capture"
+          status=$?
+          set -e
+          if [ "$status" -ne 1 ]; then
+            echo "Expected malformed capture to exit 1, got $status"
+            exit 1
+          fi
+          set +e
+          moon run cmd/main --target js
+          status=$?
+          set -e
+          if [ "$status" -ne 2 ]; then
+            echo "Expected CLI usage error to exit 2, got $status"
+            exit 1
+          fi

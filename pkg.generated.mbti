@@ -1,0 +1,237 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "228sydddd/moonfix"
+
+// Values
+pub fn apply_inbound(SessionState, Message) -> Result[SessionTransition, SessionError]
+
+pub fn audit_capture(String, limits? : ParseLimits) -> CaptureAudit
+
+pub fn capture_audit_jsonl(CaptureAudit) -> String
+
+pub fn default_parse_limits() -> ParseLimits
+
+pub fn encode_message(Message) -> Result[String, CodecError]
+
+pub fn message(String, Array[Field]) -> Message
+
+pub fn new_session_state(String, Int, Int) -> Result[SessionState, SessionError]
+
+pub fn parse_group(Message, GroupDefinition) -> Result[GroupParse, CodecError]
+
+pub fn parse_message(String, limits? : ParseLimits) -> Result[Message, CodecError]
+
+pub fn start_test_request(SessionState, String) -> Result[SessionTransition, SessionError]
+
+pub fn validate_dictionary(Dictionary) -> Array[ValidationIssue]
+
+pub fn validate_message(Dictionary, Message) -> ValidationReport
+
+// Errors
+
+// Types and methods
+pub(all) struct CaptureAudit {
+  records : Array[CaptureRecord]
+  findings : Array[CaptureFinding]
+  bytes_consumed : Int
+  trailing_bytes : Int
+}
+
+pub(all) struct CaptureFinding {
+  code : CaptureFindingCode
+  byte_offset : Int
+  message_index : Int
+  expected_sequence : Int?
+  actual_sequence : Int?
+  sender : String
+  target : String
+  detail : String
+}
+
+pub(all) enum CaptureFindingCode {
+  CaptureFramingError
+  CaptureSequenceGap
+  CaptureDuplicateSequence
+  CaptureOutOfOrderSequence
+  CaptureMissingSequence
+  CaptureMissingCompId
+}
+
+pub(all) struct CaptureRecord {
+  byte_offset : Int
+  wire_length : Int
+  message_index : Int
+  begin_string : String
+  message_type : String
+  sequence_number : Int?
+  possible_duplicate : Bool
+  sender : String
+  target : String
+}
+
+pub(all) struct CodecError {
+  kind : CodecErrorKind
+  offset : Int
+  detail : String
+}
+
+pub(all) enum CodecErrorKind {
+  NonAscii
+  InvalidField
+  InvalidTag
+  InvalidBodyLength
+  BodyLengthMismatch
+  InvalidChecksum
+  ChecksumMismatch
+  FramingLimit
+  ReservedTag
+  InvalidGroupCount
+  GroupDelimiterMissing
+  GroupFieldUnexpected
+  GroupLimit
+}
+
+pub(all) struct Dictionary {
+  version : String
+  fields : Array[FieldDefinition]
+  messages : Array[MessageDefinition]
+}
+
+pub(all) struct Field {
+  tag : Int
+  value : String
+}
+
+pub(all) struct FieldDefinition {
+  tag : Int
+  name : String
+  kind : ValueKind
+  required : Bool
+  repeatable : Bool
+  allow_empty : Bool
+  allowed_values : Array[String]
+  length_tag : Int?
+}
+
+pub(all) struct GroupDefinition {
+  count_tag : Int
+  delimiter_tag : Int
+  member_tags : Array[Int]
+  max_entries : Int
+}
+
+pub(all) struct GroupEntry {
+  fields : Array[Field]
+  first_field_index : Int
+}
+
+pub(all) struct GroupParse {
+  count_tag_index : Int
+  entries : Array[GroupEntry]
+  next_field_index : Int
+}
+
+pub(all) struct Message {
+  begin_string : String
+  fields : Array[Field]
+}
+
+pub(all) struct MessageDefinition {
+  msg_type : String
+  name : String
+  required_tags : Array[Int]
+  allowed_tags : Array[Int]
+  groups : Array[GroupDefinition]
+}
+
+pub(all) struct ParseLimits {
+  max_message_bytes : Int
+  max_fields : Int
+}
+
+pub(all) enum SessionAction {
+  SendMessage(Message)
+  DeliverApplication(Message)
+  DuplicateIgnored(Int)
+  SessionEstablished
+  PeerLoggedOut
+  ResendRequested(Int, Int)
+  SequenceAdvanced(Int)
+  PeerRejected(Int?)
+}
+
+pub(all) struct SessionError {
+  kind : SessionErrorKind
+  tag : Int
+  detail : String
+}
+
+pub(all) enum SessionErrorKind {
+  MissingSessionField
+  InvalidSessionField
+  UnexpectedSequence
+  InvalidTransition
+  InvalidReset
+}
+
+pub(all) struct SessionState {
+  begin_string : String
+  status : SessionStatus
+  next_inbound_seq : Int
+  next_outbound_seq : Int
+  heartbeat_seconds : Int
+  pending_test_request : String?
+}
+
+pub(all) enum SessionStatus {
+  AwaitingLogon
+  Active
+  Terminated
+}
+
+pub(all) struct SessionTransition {
+  state : SessionState
+  accepted : Bool
+  actions : Array[SessionAction]
+}
+
+pub(all) enum ValidationCode {
+  MissingMsgType
+  UnknownMessageType
+  UnknownTag
+  DuplicateField
+  MissingRequiredField
+  DisallowedField
+  EmptyValue
+  InvalidValue
+  InvalidEnum
+  InvalidLengthPair
+  InvalidDictionary
+  InvalidGroup
+}
+
+pub(all) struct ValidationIssue {
+  code : ValidationCode
+  tag : Int
+  field_index : Int
+  detail : String
+}
+
+pub(all) struct ValidationReport {
+  valid : Bool
+  message_type : String
+  checked_fields : Int
+  issues : Array[ValidationIssue]
+}
+
+pub(all) enum ValueKind {
+  TextValue
+  IntegerValue
+  DecimalValue
+  BooleanValue
+  CharacterValue
+  UtcTimestampValue
+}
+
+// Type aliases
+
+// Traits

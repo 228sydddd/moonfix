@@ -1,0 +1,5 @@
+import {
+  "228sydddd/moonfix",
+}
+
+pkgtype(kind: "executable")
