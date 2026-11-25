@@ -509,3 +509,37 @@ test "session reducer rejects repeated control fields" {
     Err(error) => assert_eq(error.tag, 7)
   }
 }
+
+///|
+test "session replay headers require a valid OrigSendingTime only with PossDupFlag Y" {
+  let initial = match @moonfix.new_session_state("FIX.4.4", 1, 1) {
+    Ok(value) => value
+    Err(error) => fail(error.detail)
+  }
+  let cases : Array[Array[@moonfix.Field]] = [
+    [@moonfix.Field::{ tag: 43, value: "Y", }],
+    [
+      @moonfix.Field::{ tag: 43, value: "N", },
+      @moonfix.Field::{ tag: 122, value: "20261125-12:00:00", },
+    ],
+    [@moonfix.Field::{ tag: 43, value: "X", }],
+    [
+      @moonfix.Field::{ tag: 43, value: "Y", },
+      @moonfix.Field::{ tag: 122, value: "not-a-timestamp", },
+    ],
+  ]
+  for fields in cases {
+    let message = @moonfix.message(
+      "FIX.4.4",
+      [
+        @moonfix.Field::{ tag: 35, value: "0", },
+        @moonfix.Field::{ tag: 34, value: "1", },
+        ..fields,
+      ],
+    )
+    match @moonfix.apply_inbound(initial, message) {
+      Ok(_) => fail("invalid PossDupFlag/OrigSendingTime pair must be rejected")
+      Err(error) => assert_true(error.kind is @moonfix.InvalidSessionField)
+    }
+  }
+}

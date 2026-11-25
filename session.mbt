@@ -388,6 +388,42 @@ pub fn apply_inbound(
         ),
       )
   }
+  match session_field(input, 43) {
+    None if session_field(input, 122) is Some(_) =>
+      return Err(
+        session_error(
+          InvalidSessionField,
+          122,
+          "OrigSendingTime requires PossDupFlag=Y",
+        ),
+      )
+    None => ()
+    Some("N") if session_field(input, 122) is Some(_) =>
+      return Err(
+        session_error(
+          InvalidSessionField,
+          122,
+          "OrigSendingTime requires PossDupFlag=Y",
+        ),
+      )
+    Some("N") => ()
+    Some("Y") =>
+      match session_field(input, 122) {
+        Some(value) if is_utc_timestamp(value) => ()
+        _ =>
+          return Err(
+            session_error(
+              InvalidSessionField,
+              122,
+              "PossDupFlag=Y requires a valid OrigSendingTime",
+            ),
+          )
+      }
+    Some(_) =>
+      return Err(
+        session_error(InvalidSessionField, 43, "PossDupFlag must be Y or N"),
+      )
+  }
   let reset_logon = if msg_type == "A" {
     let reset_count = number_of_tag(input.fields, 141)
     if reset_count > 1 {
