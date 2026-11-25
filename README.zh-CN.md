@@ -17,7 +17,7 @@ MoonFIX 是使用 MoonBit 编写的经典 FIX 4.4 TagValue 协议库和离线 ca
 - 保留字段顺序的 TagValue 解析与编码；检查 ASCII、字段数、大小、`BodyLength`、终止字段和校验和。
 - 调用方提供字典后，可验证消息类型、必填/重复标签、枚举、值类型及 Length/Data 配对。
 - 扁平重复组解析，检查 delimiter、成员顺序和条目上限。
-- 对当前实现的 Logon/Logout、心跳/TestRequest、序号缺口、ResendRequest 和 SequenceReset 分支执行纯状态转换。Logon 要求 `EncryptMethod=0`，并区分 GapFill 与 Reset 的序号处理。
+- 对当前实现的 Logon/Logout、心跳/TestRequest、序号缺口、ResendRequest 和 SequenceReset 分支执行纯状态转换。Logon 要求 `EncryptMethod=0`；`ResetSeqNumFlag=Y` 会重置双向序号，并区分 GapFill 与 Reset 的序号处理。
 - capture 重同步、消息间 CR/LF、序号缺口/重复/乱序诊断及确定性 JSONL 输出。
 - Node.js 文件 CLI：审计干净退出 0，有 finding 退出 1，用法错误退出 2。
 

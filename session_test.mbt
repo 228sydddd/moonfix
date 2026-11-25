@@ -60,6 +60,64 @@ test "session reducer establishes logon and answers test requests" {
 }
 
 ///|
+test "Logon ResetSeqNumFlag resets both directions before sequence checks" {
+  let stale = match @moonfix.new_session_state("FIX.4.4", 13, 27) {
+    Ok(value) => value
+    Err(error) => fail(error.detail)
+  }
+  let reset_logon = @moonfix.message("FIX.4.4", [
+    { tag: 35, value: "A", },
+    { tag: 34, value: "1", },
+    { tag: 98, value: "0", },
+    { tag: 108, value: "30", },
+    { tag: 141, value: "Y", },
+  ])
+  let transition = match @moonfix.apply_inbound(stale, reset_logon) {
+    Ok(value) => value
+    Err(error) => fail(error.detail)
+  }
+  assert_eq(transition.state.next_inbound_seq, 2)
+  assert_eq(transition.state.next_outbound_seq, 2)
+  let response = match transition.actions[1] {
+    @moonfix.SendMessage(message) => message
+    _ => fail("Logon response must be sent after establishment")
+  }
+  assert_eq(response.fields[1].value, "1")
+  assert_true(response.fields.any(f => f.tag == 141 && f.value == "Y"))
+}
+
+///|
+test "Logon ResetSeqNumFlag rejects invalid and repeated values" {
+  let state = match @moonfix.new_session_state("FIX.4.4", 1, 1) {
+    Ok(value) => value
+    Err(error) => fail(error.detail)
+  }
+  let invalid = @moonfix.message("FIX.4.4", [
+    { tag: 35, value: "A", },
+    { tag: 34, value: "1", },
+    { tag: 98, value: "0", },
+    { tag: 108, value: "30", },
+    { tag: 141, value: "X", },
+  ])
+  match @moonfix.apply_inbound(state, invalid) {
+    Ok(_) => fail("ResetSeqNumFlag must be Y or N")
+    Err(error) => assert_eq(error.tag, 141)
+  }
+  let duplicate = @moonfix.message("FIX.4.4", [
+    { tag: 35, value: "A", },
+    { tag: 34, value: "1", },
+    { tag: 98, value: "0", },
+    { tag: 108, value: "30", },
+    { tag: 141, value: "Y", },
+    { tag: 141, value: "N", },
+  ])
+  match @moonfix.apply_inbound(state, duplicate) {
+    Ok(_) => fail("ResetSeqNumFlag must not be repeated")
+    Err(error) => assert_eq(error.tag, 141)
+  }
+}
+
+///|
 test "session reducer emits resend request for a gap without advancing inbound state" {
   let state = match @moonfix.new_session_state("FIX.4.4", 1, 1) {
     Ok(value) => value

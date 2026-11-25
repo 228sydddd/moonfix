@@ -241,6 +241,43 @@ pub fn apply_inbound(
         ),
       )
   }
+  let reset_logon = if msg_type == "A" {
+    let reset_count = number_of_tag(input.fields, 141)
+    if reset_count > 1 {
+      return Err(
+        session_error(
+          InvalidSessionField,
+          141,
+          "Logon must not repeat ResetSeqNumFlag",
+        ),
+      )
+    }
+    match session_field(input, 141) {
+      None | Some("N") => false
+      Some("Y") => {
+        if seq != 1 {
+          return Err(
+            session_error(
+              InvalidReset,
+              141,
+              "ResetSeqNumFlag Logon must use sequence number 1",
+            ),
+          )
+        }
+        true
+      }
+      Some(_) =>
+        return Err(
+          session_error(
+            InvalidSessionField,
+            141,
+            "ResetSeqNumFlag must be Y or N",
+          ),
+        )
+    }
+  } else {
+    false
+  }
   if msg_type == "4" {
     let gap_fill = match session_field(input, 123) {
       Some("Y") => true
@@ -282,7 +319,7 @@ pub fn apply_inbound(
       return Ok(session_transition(next, true, [SequenceAdvanced(new_seq)]))
     }
   }
-  if seq < state.next_inbound_seq {
+  if !reset_logon && seq < state.next_inbound_seq {
     let possible_duplicate = session_field(input, 43) == Some("Y")
     let original_time_present = session_field(input, 122) is Some(_)
     if possible_duplicate && original_time_present {
@@ -296,7 +333,7 @@ pub fn apply_inbound(
       ),
     )
   }
-  if seq > state.next_inbound_seq {
+  if !reset_logon && seq > state.next_inbound_seq {
     let (request, next_outbound) = outgoing(state, "2", [
       { tag: 7, value: state.next_inbound_seq.to_string(), },
       { tag: 16, value: (seq - 1).to_string(), },
@@ -320,7 +357,7 @@ pub fn apply_inbound(
       ),
     )
   }
-  let next_inbound = seq + 1
+  let next_inbound = if reset_logon { 2 } else { seq + 1 }
   match msg_type {
     "A" => {
       if state.status is Active {
@@ -377,28 +414,27 @@ pub fn apply_inbound(
             ),
           )
       }
-      let reset = session_field(input, 141) == Some("Y")
-      if reset && seq != 1 {
-        return Err(
-          session_error(
-            InvalidReset,
-            141,
-            "ResetSeqNumFlag Logon must use sequence number 1",
-          ),
-        )
+      let initial_outbound = if reset_logon {
+        1
+      } else {
+        state.next_outbound_seq
       }
       let base = with_sequences(
         state,
         next_inbound,
-        state.next_outbound_seq,
+        initial_outbound,
         Active,
         heartbeat,
         None,
       )
-      let (reply, next_outbound) = outgoing(base, "A", [
+      let reply_fields : Array[Field] = [
         { tag: 98, value: "0", },
         { tag: 108, value: heartbeat.to_string(), },
-      ])
+      ]
+      if reset_logon {
+        reply_fields.push({ tag: 141, value: "Y", })
+      }
+      let (reply, next_outbound) = outgoing(base, "A", reply_fields)
       let next = with_sequences(
         base,
         next_inbound,
