@@ -110,6 +110,64 @@ pub fn validate_dictionary(dictionary : Dictionary) -> Array[ValidationIssue] {
         ),
       )
     }
+    match field.length_tag {
+      None => ()
+      Some(length_tag) => {
+        if length_tag == field.tag {
+          issues.push(
+            validation_issue(
+              InvalidDictionary,
+              field.tag,
+              -1,
+              "a data field cannot use itself as its length tag",
+            ),
+          )
+        }
+        match find_field_definition(dictionary, length_tag) {
+          Some(length_field) if length_field.kind is IntegerValue =>
+            if length_field.repeatable || length_field.length_tag is Some(_) {
+              issues.push(
+                validation_issue(
+                  InvalidDictionary,
+                  length_tag,
+                  -1,
+                  "a length tag must be a nonrepeatable integer field",
+                ),
+              )
+            }
+          Some(_) =>
+            issues.push(
+              validation_issue(
+                InvalidDictionary,
+                length_tag,
+                -1,
+                "a length tag must have an integer field definition",
+              ),
+            )
+          None =>
+            issues.push(
+              validation_issue(
+                InvalidDictionary,
+                length_tag,
+                -1,
+                "a length tag must have a field definition",
+              ),
+            )
+        }
+        for j in (i + 1)..<dictionary.fields.length() {
+          if dictionary.fields[j].length_tag == Some(length_tag) {
+            issues.push(
+              validation_issue(
+                InvalidDictionary,
+                length_tag,
+                -1,
+                "a length tag cannot be shared by multiple data fields",
+              ),
+            )
+          }
+        }
+      }
+    }
     for j in (i + 1)..<dictionary.fields.length() {
       if dictionary.fields[j].tag == field.tag {
         issues.push(

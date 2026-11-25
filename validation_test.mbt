@@ -234,3 +234,49 @@ test "dictionary rejects repeating groups with ambiguous tag ownership" {
     overlap_issues.any(i => i.code is @moonfix.InvalidDictionary && i.tag == 96),
   )
 }
+
+///|
+test "dictionary validates Length Data references and ownership" {
+  let base = order_dictionary()
+  let raw_data = base.fields[5]
+  let missing_length_fields = [
+    base.fields[0],
+    base.fields[1],
+    base.fields[2],
+    base.fields[3],
+    raw_data,
+  ]
+  let missing_length : @moonfix.Dictionary = {
+    version: base.version,
+    fields: missing_length_fields,
+    messages: base.messages,
+  }
+  assert_true(
+    @moonfix.validate_dictionary(missing_length).any(i => {
+      i.code is @moonfix.InvalidDictionary && i.tag == 95
+    }),
+  )
+
+  let wrong_type_fields = base.fields.copy()
+  wrong_type_fields[4] = {
+    tag: 95,
+    name: "RawDataLength",
+    kind: @moonfix.TextValue,
+    required: false,
+    repeatable: false,
+    allow_empty: false,
+    allowed_values: [],
+    length_tag: None,
+  }
+  let wrong_type : @moonfix.Dictionary = {
+    version: base.version,
+    fields: wrong_type_fields,
+    messages: base.messages,
+  }
+  assert_true(
+    @moonfix.validate_dictionary(wrong_type).any(i => {
+      i.code is @moonfix.InvalidDictionary && i.tag == 95
+    }),
+  )
+  assert_eq(@moonfix.validate_dictionary(base).length(), 0)
+}
