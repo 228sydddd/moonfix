@@ -25,11 +25,36 @@ pub fn parse_group(
   message : Message,
   definition : GroupDefinition,
 ) -> Result[GroupParse, CodecError] {
-  if definition.max_entries <= 0 ||
+  if definition.count_tag <= 0 ||
+    definition.delimiter_tag <= 0 ||
+    definition.max_entries <= 0 ||
     definition.member_tags.length() == 0 ||
+    group_has_tag(definition, definition.count_tag) ||
     !group_has_tag(definition, definition.delimiter_tag) {
     return Err(
       codec_error(InvalidGroupCount, 0, "invalid repeating-group definition"),
+    )
+  }
+  for i, tag in definition.member_tags {
+    for j in (i + 1)..<definition.member_tags.length() {
+      if definition.member_tags[j] == tag {
+        return Err(
+          codec_error(
+            InvalidGroupCount,
+            0,
+            "repeating-group member tags must be unique",
+          ),
+        )
+      }
+    }
+  }
+  if number_of_tag(message.fields, definition.count_tag) != 1 {
+    return Err(
+      codec_error(
+        InvalidGroupCount,
+        0,
+        "group count field must occur exactly once",
+      ),
     )
   }
   let count_index = match group_count_index(message, definition.count_tag) {
@@ -105,6 +130,16 @@ pub fn parse_group(
     entries.push({ fields: entry_fields, first_field_index: first_index, })
     entry_index += 1
   }
+  if cursor < message.fields.length() &&
+    group_has_tag(definition, message.fields[cursor].tag) {
+    return Err(
+      codec_error(
+        GroupFieldUnexpected,
+        cursor,
+        "group contains member fields beyond its declared entry count",
+      ),
+    )
+  }
   Ok({ count_tag_index: count_index, entries, next_field_index: cursor, })
 }
 
@@ -155,5 +190,55 @@ test "repeating group rejects missing delimiter and oversized count" {
   match parse_group(oversized, shape) {
     Ok(_) => fail("configured group bound must be enforced")
     Err(error) => assert_true(error.kind is GroupLimit)
+  }
+}
+
+///|
+test "repeating group enforces a unique count and exact member extent" {
+  let shape : GroupDefinition = {
+    count_tag: 453,
+    delimiter_tag: 448,
+    member_tags: [448, 447],
+    max_entries: 16,
+  }
+  let zero_with_members = message("FIX.4.4", [
+    { tag: 453, value: "0", },
+    { tag: 448, value: "A", },
+  ])
+  match parse_group(zero_with_members, shape) {
+    Ok(_) => fail("zero entries must not leave group members unconsumed")
+    Err(error) => assert_true(error.kind is GroupFieldUnexpected)
+  }
+  let underreported = message("FIX.4.4", [
+    { tag: 453, value: "1", },
+    { tag: 448, value: "A", },
+    { tag: 448, value: "B", },
+  ])
+  match parse_group(underreported, shape) {
+    Ok(_) => fail("members after the declared entry count must be rejected")
+    Err(error) => assert_true(error.kind is GroupFieldUnexpected)
+  }
+  let duplicate_count = message("FIX.4.4", [
+    { tag: 453, value: "0", },
+    { tag: 453, value: "0", },
+  ])
+  match parse_group(duplicate_count, shape) {
+    Ok(_) => fail("the group count tag must occur exactly once")
+    Err(error) => assert_true(error.kind is InvalidGroupCount)
+  }
+}
+
+///|
+test "repeating group rejects ambiguous member definitions" {
+  let msg = message("FIX.4.4", [{ tag: 453, value: "0", }])
+  let duplicate_members : GroupDefinition = {
+    count_tag: 453,
+    delimiter_tag: 448,
+    member_tags: [448, 447, 447],
+    max_entries: 16,
+  }
+  match parse_group(msg, duplicate_members) {
+    Ok(_) => fail("member order must not contain duplicate tags")
+    Err(error) => assert_true(error.kind is InvalidGroupCount)
   }
 }
