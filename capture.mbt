@@ -47,6 +47,14 @@ pub(all) struct CaptureAudit {
 }
 
 ///|
+priv struct CaptureSequenceState {
+  begin_string : String
+  sender : String
+  target : String
+  next_expected : Int?
+}
+
+///|
 fn capture_field(message : Message, tag : Int) -> String? {
   for field in message.fields {
     if field.tag == tag {
@@ -54,6 +62,20 @@ fn capture_field(message : Message, tag : Int) -> String? {
     }
   }
   None
+}
+
+///|
+fn capture_unique_field(message : Message, tag : Int) -> String? {
+  let mut value : String? = None
+  for field in message.fields {
+    if field.tag == tag {
+      if value is Some(_) {
+        return None
+      }
+      value = Some(field.value)
+    }
+  }
+  value
 }
 
 ///|
@@ -106,9 +128,9 @@ fn capture_record(
     message_type: capture_field(message, 35).unwrap_or(""),
     sequence_number: capture_integer(message, 34),
     possible_duplicate: capture_field(message, 43) == Some("Y"),
-    reset_sequence_numbers: capture_field(message, 35) == Some("A") &&
-    capture_field(message, 141) == Some("Y") &&
-    capture_integer(message, 34) == Some(1),
+    reset_sequence_numbers: capture_unique_field(message, 35) == Some("A") &&
+    capture_unique_field(message, 141) == Some("Y") &&
+    capture_unique_field(message, 34) == Some("1"),
     sender: capture_field(message, 49).unwrap_or(""),
     target: capture_field(message, 56).unwrap_or(""),
   }
@@ -185,46 +207,25 @@ fn find_capture_message_end(
 }
 
 ///|
-fn same_capture_session(left : CaptureRecord, right : CaptureRecord) -> Bool {
-  left.begin_string == right.begin_string &&
-  left.sender == right.sender &&
-  left.target == right.target
-}
 
 ///|
-fn expected_capture_sequence(
-  records : Array[CaptureRecord],
-  before : Int,
-  current : CaptureRecord,
+fn capture_sequence_state_index(
+  states : Array[CaptureSequenceState],
+  record : CaptureRecord,
 ) -> Int? {
-  let mut maximum : Int? = None
-  let mut index = before - 1
-  while index >= 0 {
-    let record = records[index]
-    if same_capture_session(record, current) {
-      if record.reset_sequence_numbers {
-        return match maximum {
-          Some(value) => Some(value + 1)
-          None => record.sequence_number.map(value => value + 1)
-        }
-      }
-      match record.sequence_number {
-        Some(value) =>
-          maximum = match maximum {
-            Some(existing) if existing > value => Some(existing)
-            _ => Some(value)
-          }
-        None => ()
-      }
+  for index, state in states {
+    if state.begin_string == record.begin_string &&
+      state.sender == record.sender &&
+      state.target == record.target {
+      return Some(index)
     }
-    index -= 1
   }
-  maximum.map(value => value + 1)
+  None
 }
 
 ///|
 fn append_record_findings(
-  records : Array[CaptureRecord],
+  sequence_states : Array[CaptureSequenceState],
   findings : Array[CaptureFinding],
   record : CaptureRecord,
 ) -> Unit {
@@ -257,11 +258,31 @@ fn append_record_findings(
     )
     return
   }
+  let state_index = match
+    capture_sequence_state_index(sequence_states, record) {
+    Some(index) => index
+    None => {
+      sequence_states.push({
+        begin_string: record.begin_string,
+        sender: record.sender,
+        target: record.target,
+        next_expected: None,
+      })
+      sequence_states.length() - 1
+    }
+  }
+  let state = sequence_states[state_index]
   match record.sequence_number {
     None => ()
-    Some(_) if record.reset_sequence_numbers => ()
-    Some(actual) =>
-      match expected_capture_sequence(records, record.message_index, record) {
+    Some(_) if record.reset_sequence_numbers =>
+      sequence_states[state_index] = {
+        begin_string: state.begin_string,
+        sender: state.sender,
+        target: state.target,
+        next_expected: Some(2),
+      }
+    Some(actual) => {
+      match state.next_expected {
         None => ()
         Some(expected) =>
           if actual > expected {
@@ -303,6 +324,16 @@ fn append_record_findings(
             )
           }
       }
+      if state.next_expected is None ||
+        (state.next_expected is Some(value) && actual >= value) {
+        sequence_states[state_index] = {
+          begin_string: state.begin_string,
+          sender: state.sender,
+          target: state.target,
+          next_expected: Some(actual + 1),
+        }
+      }
+    }
   }
 }
 
@@ -315,6 +346,7 @@ pub fn audit_capture(
 ) -> CaptureAudit {
   let records : Array[CaptureRecord] = []
   let findings : Array[CaptureFinding] = []
+  let sequence_states : Array[CaptureSequenceState] = []
   let mut cursor = 0
   let mut consumed = 0
   while cursor < wire.length() {
@@ -393,7 +425,7 @@ pub fn audit_capture(
                   records.length(),
                   message,
                 )
-                append_record_findings(records, findings, record)
+                append_record_findings(sequence_states, findings, record)
                 records.push(record)
                 cursor = end
                 consumed = end
