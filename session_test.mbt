@@ -376,3 +376,40 @@ test "send_logout rejects inactive sessions and empty reason text" {
     Err(error) => assert_eq(error.tag, 58)
   }
 }
+
+///|
+test "session reducer rejects repeated control fields" {
+  let initial = match @moonfix.new_session_state("FIX.4.4", 1, 1) {
+    Ok(value) => value
+    Err(error) => fail(error.detail)
+  }
+  let active = match @moonfix.apply_inbound(initial, logon_message("1")) {
+    Ok(value) => value.state
+    Err(error) => fail(error.detail)
+  }
+  let ambiguous_duplicate = @moonfix.message("FIX.4.4", [
+    { tag: 35, value: "0", },
+    { tag: 34, value: "1", },
+    { tag: 43, value: "Y", },
+    { tag: 122, value: "20261125-12:00:00", },
+    { tag: 122, value: "20261125-12:00:01", },
+  ])
+  match @moonfix.apply_inbound(active, ambiguous_duplicate) {
+    Ok(_) => fail("duplicate OrigSendingTime must not be accepted as a replay")
+    Err(error) => {
+      assert_true(error.kind is @moonfix.InvalidSessionField)
+      assert_eq(error.tag, 122)
+    }
+  }
+  let duplicate_resend_range = @moonfix.message("FIX.4.4", [
+    { tag: 35, value: "2", },
+    { tag: 34, value: "2", },
+    { tag: 7, value: "1", },
+    { tag: 7, value: "2", },
+    { tag: 16, value: "0", },
+  ])
+  match @moonfix.apply_inbound(active, duplicate_resend_range) {
+    Ok(_) => fail("duplicate ResendRequest range fields must be rejected")
+    Err(error) => assert_eq(error.tag, 7)
+  }
+}

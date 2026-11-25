@@ -271,6 +271,36 @@ pub fn apply_inbound(
     None =>
       return Err(session_error(MissingSessionField, 35, "MsgType is missing"))
   }
+  let control_tags : Array[Int] = [43, 122]
+  match msg_type {
+    "A" => {
+      control_tags.push(98)
+      control_tags.push(108)
+      control_tags.push(141)
+    }
+    "0" | "1" => control_tags.push(112)
+    "2" => {
+      control_tags.push(7)
+      control_tags.push(16)
+    }
+    "4" => {
+      control_tags.push(36)
+      control_tags.push(123)
+    }
+    "5" => control_tags.push(58)
+    _ => ()
+  }
+  for tag in control_tags {
+    if number_of_tag(input.fields, tag) > 1 {
+      return Err(
+        session_error(
+          InvalidSessionField,
+          tag,
+          "session control fields must not be repeated",
+        ),
+      )
+    }
+  }
   let seq = match session_int(input, 34) {
     Some(value) if value > 0 => value
     _ =>
