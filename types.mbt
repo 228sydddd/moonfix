@@ -1,7 +1,7 @@
 ///|
 /// A raw FIX field; order and duplicate tags are intentionally preserved.
 pub(all) struct Field {
-  tag : Int
+  tag : Int32
   value : String
 }
 
@@ -33,14 +33,14 @@ pub(all) enum CodecErrorKind {
 ///|
 pub(all) struct CodecError {
   kind : CodecErrorKind
-  offset : Int
+  offset : Int32
   detail : String
 }
 
 ///|
 pub(all) struct ParseLimits {
-  max_message_bytes : Int
-  max_fields : Int
+  max_message_bytes : Int32
+  max_fields : Int32
 }
 
 ///|
@@ -51,7 +51,7 @@ pub fn default_parse_limits() -> ParseLimits {
 ///|
 fn codec_error(
   kind : CodecErrorKind,
-  offset : Int,
+  offset : Int32,
   detail : String,
 ) -> CodecError {
   { kind, offset, detail, }
@@ -76,23 +76,23 @@ pub(all) enum ValueKind {
 ///|
 /// Validation metadata for one tag; `allowed_values` is an optional enum set.
 pub(all) struct FieldDefinition {
-  tag : Int
+  tag : Int32
   name : String
   kind : ValueKind
   required : Bool
   repeatable : Bool
   allow_empty : Bool
   allowed_values : Array[String]
-  length_tag : Int?
+  length_tag : Int32?
 }
 
 ///|
 /// One repeating-group shape. Members are checked in their supplied wire order.
 pub(all) struct GroupDefinition {
-  count_tag : Int
-  delimiter_tag : Int
-  member_tags : Array[Int]
-  max_entries : Int
+  count_tag : Int32
+  delimiter_tag : Int32
+  member_tags : Array[Int32]
+  max_entries : Int32
 }
 
 ///|
@@ -100,8 +100,8 @@ pub(all) struct GroupDefinition {
 pub(all) struct MessageDefinition {
   msg_type : String
   name : String
-  required_tags : Array[Int]
-  allowed_tags : Array[Int]
+  required_tags : Array[Int32]
+  allowed_tags : Array[Int32]
   groups : Array[GroupDefinition]
 }
 
@@ -134,8 +134,8 @@ pub(all) enum ValidationCode {
 /// One validation finding. `field_index` is -1 for message-level findings.
 pub(all) struct ValidationIssue {
   code : ValidationCode
-  tag : Int
-  field_index : Int
+  tag : Int32
+  field_index : Int32
   detail : String
 }
 
@@ -144,7 +144,7 @@ pub(all) struct ValidationIssue {
 pub(all) struct ValidationReport {
   valid : Bool
   message_type : String
-  checked_fields : Int
+  checked_fields : Int32
   issues : Array[ValidationIssue]
 }
 
@@ -152,13 +152,13 @@ pub(all) struct ValidationReport {
 /// One parsed occurrence in a repeating group.
 pub(all) struct GroupEntry {
   fields : Array[Field]
-  first_field_index : Int
+  first_field_index : Int32
 }
 
 ///|
 /// Parsed group entries and the field index immediately after the group region.
 pub(all) struct GroupParse {
-  count_tag_index : Int
+  count_tag_index : Int32
   entries : Array[GroupEntry]
-  next_field_index : Int
+  next_field_index : Int32
 }

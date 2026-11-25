@@ -13,10 +13,10 @@ pub(all) enum CaptureFindingCode {
 /// One stable, position-aware finding produced while reading an offline capture.
 pub(all) struct CaptureFinding {
   code : CaptureFindingCode
-  byte_offset : Int
-  message_index : Int
-  expected_sequence : Int?
-  actual_sequence : Int?
+  byte_offset : Int32
+  message_index : Int32
+  expected_sequence : Int32?
+  actual_sequence : Int32?
   sender : String
   target : String
   detail : String
@@ -25,12 +25,12 @@ pub(all) struct CaptureFinding {
 ///|
 /// Metadata retained for a successfully framed capture message.
 pub(all) struct CaptureRecord {
-  byte_offset : Int
-  wire_length : Int
-  message_index : Int
+  byte_offset : Int32
+  wire_length : Int32
+  message_index : Int32
   begin_string : String
   message_type : String
-  sequence_number : Int?
+  sequence_number : Int32?
   possible_duplicate : Bool
   reset_sequence_numbers : Bool
   sender : String
@@ -42,8 +42,8 @@ pub(all) struct CaptureRecord {
 pub(all) struct CaptureAudit {
   records : Array[CaptureRecord]
   findings : Array[CaptureFinding]
-  bytes_consumed : Int
-  trailing_bytes : Int
+  bytes_consumed : Int32
+  trailing_bytes : Int32
 }
 
 ///|
@@ -51,11 +51,11 @@ priv struct CaptureSequenceState {
   begin_string : String
   sender : String
   target : String
-  next_expected : Int?
+  next_expected : Int32?
 }
 
 ///|
-fn capture_field(message : Message, tag : Int) -> String? {
+fn capture_field(message : Message, tag : Int32) -> String? {
   for field in message.fields {
     if field.tag == tag {
       return Some(field.value)
@@ -65,7 +65,7 @@ fn capture_field(message : Message, tag : Int) -> String? {
 }
 
 ///|
-fn capture_unique_field(message : Message, tag : Int) -> String? {
+fn capture_unique_field(message : Message, tag : Int32) -> String? {
   let mut value : String? = None
   for field in message.fields {
     if field.tag == tag {
@@ -79,7 +79,7 @@ fn capture_unique_field(message : Message, tag : Int) -> String? {
 }
 
 ///|
-fn capture_integer(message : Message, tag : Int) -> Int? {
+fn capture_integer(message : Message, tag : Int32) -> Int32? {
   match capture_field(message, tag) {
     None => None
     Some(value) =>
@@ -93,10 +93,10 @@ fn capture_integer(message : Message, tag : Int) -> Int? {
 ///|
 fn capture_finding(
   code : CaptureFindingCode,
-  byte_offset : Int,
-  message_index : Int,
-  expected_sequence : Int?,
-  actual_sequence : Int?,
+  byte_offset : Int32,
+  message_index : Int32,
+  expected_sequence : Int32?,
+  actual_sequence : Int32?,
   sender : String,
   target : String,
   detail : String,
@@ -115,9 +115,9 @@ fn capture_finding(
 
 ///|
 fn capture_record(
-  offset : Int,
-  length : Int,
-  index : Int,
+  offset : Int32,
+  length : Int32,
+  index : Int32,
   message : Message,
 ) -> CaptureRecord {
   {
@@ -137,7 +137,7 @@ fn capture_record(
 }
 
 ///|
-fn find_capture_start(wire : String, start : Int) -> Int? {
+fn find_capture_start(wire : String, start : Int32) -> Int32? {
   let mut cursor = start
   while cursor + 1 < wire.length() {
     if wire[cursor] == '8' && wire[cursor + 1] == '=' {
@@ -151,8 +151,8 @@ fn find_capture_start(wire : String, start : Int) -> Int? {
 ///|
 fn find_capture_message_end(
   wire : String,
-  start : Int,
-) -> Result[Int, CodecError] {
+  start : Int32,
+) -> Result[Int32, CodecError] {
   let first = match read_field(wire, start, wire.length()) {
     Ok(field) => field
     Err(error) => return Err(error)
@@ -212,7 +212,7 @@ fn find_capture_message_end(
 fn capture_sequence_state_index(
   states : Array[CaptureSequenceState],
   record : CaptureRecord,
-) -> Int? {
+) -> Int32? {
   for index, state in states {
     if state.begin_string == record.begin_string &&
       state.sender == record.sender &&
@@ -342,7 +342,7 @@ fn append_record_findings(
 /// Newline/CRLF separators between messages are tolerated; other garbage is reported and resynchronized.
 pub fn audit_capture(
   wire : String,
-  limits? : ParseLimits = default_parse_limits(),
+  limits~ : ParseLimits = default_parse_limits(),
 ) -> CaptureAudit {
   let records : Array[CaptureRecord] = []
   let findings : Array[CaptureFinding] = []
@@ -447,8 +447,8 @@ pub fn audit_capture(
 ///|
 fn capture_only_line_endings(
   wire : String,
-  start : Int,
-  end? : Int = wire.length(),
+  start : Int32,
+  end~ : Int32 = wire.length(),
 ) -> Bool {
   let mut index = start
   while index < end {
@@ -498,7 +498,7 @@ fn json_string(value : String) -> String {
 }
 
 ///|
-fn hex_digit(value : Int) -> String {
+fn hex_digit(value : Int32) -> String {
   match value {
     0 => "0"
     1 => "1"
@@ -520,7 +520,7 @@ fn hex_digit(value : Int) -> String {
 }
 
 ///|
-fn json_optional_int(value : Int?) -> String {
+fn json_optional_int(value : Int32?) -> String {
   match value {
     Some(number) => number.to_string()
     None => "null"

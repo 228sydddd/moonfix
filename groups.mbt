@@ -1,5 +1,5 @@
 ///|
-fn group_has_tag(definition : GroupDefinition, tag : Int) -> Bool {
+fn group_has_tag(definition : GroupDefinition, tag : Int32) -> Bool {
   for member_tag in definition.member_tags {
     if member_tag == tag {
       return true
@@ -9,7 +9,7 @@ fn group_has_tag(definition : GroupDefinition, tag : Int) -> Bool {
 }
 
 ///|
-fn group_count_index(message : Message, tag : Int) -> Int? {
+fn group_count_index(message : Message, tag : Int32) -> Int32? {
   for index, field in message.fields {
     if field.tag == tag {
       return Some(index)

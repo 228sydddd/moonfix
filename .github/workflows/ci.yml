@@ -15,10 +15,16 @@ jobs:
       - uses: actions/checkout@v5
       - name: Install MoonBit
         run: |
-          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash -s -- 0.1.20260920
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
           echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
       - name: Record toolchain
-        run: moon version --all
+        run: |
+          moon version --all
+          version="$(moon version --json)"
+          if ! printf '%s' "$version" | grep -Fq '"version":"0.1.20261119 '; then
+            echo "CI expects MoonBit 0.1.20261119; update the pinned toolchain and generated interfaces together."
+            exit 1
+          fi
       - name: Format and generate interfaces
         run: |
           moon fmt

@@ -1,9 +1,9 @@
 ///|
 fn capture_test_message(
-  seq : Int,
-  extra? : Array[@moonfix.Field] = [],
-  sender? : String = "BUY",
-  message_type? : String = "0",
+  seq : Int32,
+  extra~ : Array[@moonfix.Field] = [],
+  sender~ : String = "BUY",
+  message_type~ : String = "0",
 ) -> String {
   let fields = [
     @moonfix.Field::{ tag: 35, value: message_type, },

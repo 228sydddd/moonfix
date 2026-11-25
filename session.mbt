@@ -10,9 +10,9 @@ pub(all) enum SessionStatus {
 pub(all) struct SessionState {
   begin_string : String
   status : SessionStatus
-  next_inbound_seq : Int
-  next_outbound_seq : Int
-  heartbeat_seconds : Int
+  next_inbound_seq : Int32
+  next_outbound_seq : Int32
+  heartbeat_seconds : Int32
   pending_test_request : String?
 }
 
@@ -20,12 +20,12 @@ pub(all) struct SessionState {
 pub(all) enum SessionAction {
   SendMessage(Message)
   DeliverApplication(Message)
-  DuplicateIgnored(Int)
+  DuplicateIgnored(Int32)
   SessionEstablished
   PeerLoggedOut
-  ResendRequested(Int, Int)
-  SequenceAdvanced(Int)
-  PeerRejected(Int?)
+  ResendRequested(Int32, Int32)
+  SequenceAdvanced(Int32)
+  PeerRejected(Int32?)
 }
 
 ///|
@@ -40,7 +40,7 @@ pub(all) enum SessionErrorKind {
 ///|
 pub(all) struct SessionError {
   kind : SessionErrorKind
-  tag : Int
+  tag : Int32
   detail : String
 }
 
@@ -54,8 +54,8 @@ pub(all) struct SessionTransition {
 ///|
 pub fn new_session_state(
   begin_string : String,
-  next_inbound_seq : Int,
-  next_outbound_seq : Int,
+  next_inbound_seq : Int32,
+  next_outbound_seq : Int32,
 ) -> Result[SessionState, SessionError] {
   if begin_string.length() == 0 ||
     next_inbound_seq <= 0 ||
@@ -109,7 +109,7 @@ pub fn start_test_request(
 /// Send a sequenced Heartbeat, optionally echoing a TestReqID.
 pub fn send_heartbeat(
   state : SessionState,
-  test_request_id? : String? = None,
+  test_request_id~ : String? = None,
 ) -> Result[SessionTransition, SessionError] {
   if !(state.status is Active) {
     return Err(
@@ -145,8 +145,8 @@ pub fn send_heartbeat(
 /// Request retransmission of an inclusive sequence range; EndSeqNo zero means infinity.
 pub fn send_resend_request(
   state : SessionState,
-  begin_sequence : Int,
-  end_sequence : Int,
+  begin_sequence : Int32,
+  end_sequence : Int32,
 ) -> Result[SessionTransition, SessionError] {
   if !(state.status is Active) {
     return Err(
@@ -185,7 +185,7 @@ pub fn send_resend_request(
 /// Send Logout and terminate the local session, optionally including Text (58).
 pub fn send_logout(
   state : SessionState,
-  text? : String? = None,
+  text~ : String? = None,
 ) -> Result[SessionTransition, SessionError] {
   if !(state.status is Active) {
     return Err(
@@ -216,14 +216,14 @@ pub fn send_logout(
 ///|
 fn session_error(
   kind : SessionErrorKind,
-  tag : Int,
+  tag : Int32,
   detail : String,
 ) -> SessionError {
   { kind, tag, detail, }
 }
 
 ///|
-fn session_field(message : Message, tag : Int) -> String? {
+fn session_field(message : Message, tag : Int32) -> String? {
   for field in message.fields {
     if field.tag == tag {
       return Some(field.value)
@@ -233,7 +233,7 @@ fn session_field(message : Message, tag : Int) -> String? {
 }
 
 ///|
-fn session_int(message : Message, tag : Int) -> Int? {
+fn session_int(message : Message, tag : Int32) -> Int32? {
   match session_field(message, tag) {
     Some(value) => parse_length(value)
     None => None
@@ -248,10 +248,10 @@ fn session_type(message : Message) -> String? {
 ///|
 fn with_sequences(
   state : SessionState,
-  inbound : Int,
-  outbound : Int,
+  inbound : Int32,
+  outbound : Int32,
   status : SessionStatus,
-  heartbeat : Int,
+  heartbeat : Int32,
   pending : String?,
 ) -> SessionState {
   {
@@ -269,7 +269,7 @@ fn outgoing(
   state : SessionState,
   msg_type : String,
   extra : Array[Field],
-) -> (Message, Int) {
+) -> (Message, Int32) {
   let fields : Array[Field] = [
     { tag: 35, value: msg_type, },
     { tag: 34, value: state.next_outbound_seq.to_string(), },
@@ -285,7 +285,7 @@ fn make_send_action(
   state : SessionState,
   msg_type : String,
   extra : Array[Field],
-) -> (SessionAction, Int) {
+) -> (SessionAction, Int32) {
   let (response, next) = outgoing(state, msg_type, extra)
   (SendMessage(response), next)
 }
@@ -347,7 +347,7 @@ pub fn apply_inbound(
     None =>
       return Err(session_error(MissingSessionField, 35, "MsgType is missing"))
   }
-  let control_tags : Array[Int] = [43, 122]
+  let control_tags : Array[Int32] = [43, 122]
   match msg_type {
     "A" => {
       control_tags.push(98)

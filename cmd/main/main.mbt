@@ -48,7 +48,7 @@ extern "js" fn eprintln(text : String) -> Unit =
 
 ///|
 #cfg(target="js")
-extern "js" fn exit_process(code : Int) -> Unit =
+extern "js" fn exit_process(code : Int32) -> Unit =
   #| (code) => { process.exitCode = code; }
 
 ///|

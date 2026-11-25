@@ -1,8 +1,8 @@
 ///|
 fn validation_issue(
   code : ValidationCode,
-  tag : Int,
-  index : Int,
+  tag : Int32,
+  index : Int32,
   detail : String,
 ) -> ValidationIssue {
   { code, tag, field_index: index, detail, }
@@ -11,7 +11,7 @@ fn validation_issue(
 ///|
 fn find_field_definition(
   dictionary : Dictionary,
-  tag : Int,
+  tag : Int32,
 ) -> FieldDefinition? {
   for definition in dictionary.fields {
     if definition.tag == tag {
@@ -35,7 +35,7 @@ fn find_message_definition(
 }
 
 ///|
-fn contains_int(values : Array[Int], expected : Int) -> Bool {
+fn contains_int(values : Array[Int32], expected : Int32) -> Bool {
   for value in values {
     if value == expected {
       return true
@@ -55,7 +55,7 @@ fn contains_string(values : Array[String], expected : String) -> Bool {
 }
 
 ///|
-fn number_of_tag(fields : Array[Field], tag : Int) -> Int {
+fn number_of_tag(fields : Array[Field], tag : Int32) -> Int32 {
   let mut count = 0
   for field in fields {
     if field.tag == tag {
@@ -66,7 +66,7 @@ fn number_of_tag(fields : Array[Field], tag : Int) -> Int {
 }
 
 ///|
-fn field_value(message : Message, tag : Int) -> String? {
+fn field_value(message : Message, tag : Int32) -> String? {
   for field in message.fields {
     if field.tag == tag {
       return Some(field.value)
@@ -377,7 +377,7 @@ pub fn validate_dictionary(dictionary : Dictionary) -> Array[ValidationIssue] {
 }
 
 ///|
-fn all_digits(value : String, start : Int, end : Int) -> Bool {
+fn all_digits(value : String, start : Int32, end : Int32) -> Bool {
   if start < 0 || end > value.length() || start >= end {
     return false
   }
@@ -426,7 +426,7 @@ fn is_decimal(value : String) -> Bool {
 }
 
 ///|
-fn integer_slice(value : String, start : Int, end : Int) -> Int {
+fn integer_slice(value : String, start : Int32, end : Int32) -> Int32 {
   let mut number = 0
   for i in start..<end {
     number = number * 10 + value.code_unit_at(i).to_int() - 48
@@ -435,7 +435,7 @@ fn integer_slice(value : String, start : Int, end : Int) -> Int {
 }
 
 ///|
-fn is_leap_year(year : Int) -> Bool {
+fn is_leap_year(year : Int32) -> Bool {
   year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)
 }
 
@@ -501,7 +501,7 @@ fn value_matches(kind : ValueKind, value : String) -> Bool {
 }
 
 ///|
-fn parse_length(value : String) -> Int? {
+fn parse_length(value : String) -> Int32? {
   if !all_digits(value, 0, value.length()) {
     return None
   }

@@ -2,7 +2,7 @@
 /// Parse one complete FIX message from its ASCII TagValue wire representation.
 pub fn parse_message(
   wire : String,
-  limits? : ParseLimits = default_parse_limits(),
+  limits~ : ParseLimits = default_parse_limits(),
 ) -> Result[Message, CodecError] {
   if wire.length() > limits.max_message_bytes {
     return Err(
@@ -178,9 +178,9 @@ pub fn encode_message(message : Message) -> Result[String, CodecError] {
 ///|
 fn read_field(
   wire : String,
-  start : Int,
-  limit : Int,
-) -> Result[(Field, Int), CodecError] {
+  start : Int32,
+  limit : Int32,
+) -> Result[(Field, Int32), CodecError] {
   if start >= limit {
     return Err(
       codec_error(
@@ -222,7 +222,7 @@ fn read_field(
 }
 
 ///|
-fn parse_decimal(value : String, offset : Int) -> Result[Int, CodecError] {
+fn parse_decimal(value : String, offset : Int32) -> Result[Int32, CodecError] {
   if value.length() == 0 {
     return Err(
       codec_error(InvalidBodyLength, offset, "expected decimal digits"),
@@ -253,7 +253,10 @@ fn parse_decimal(value : String, offset : Int) -> Result[Int, CodecError] {
 }
 
 ///|
-fn parse_three_digits(value : String, offset : Int) -> Result[Int, CodecError] {
+fn parse_three_digits(
+  value : String,
+  offset : Int32,
+) -> Result[Int32, CodecError] {
   if value.length() != 3 {
     return Err(
       codec_error(InvalidChecksum, offset, "CheckSum must contain three digits"),
