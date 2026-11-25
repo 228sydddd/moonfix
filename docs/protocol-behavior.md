@@ -10,7 +10,7 @@
 
 ## 字典与重复组
 
-Dictionary 由调用方构造，MoonFIX 不随包分发交易场所字典。validate_dictionary 检查定义自身的一致性；validate_message 对消息类型、允许/必需字段、字段重复、枚举和值类型及 Length/Data 配对生成 ValidationIssue。
+Dictionary 由调用方构造，MoonFIX 不随包分发交易场所字典。validate_dictionary 检查定义自身的一致性，并拒绝同一消息中重复或相互重叠的组标签；validate_message 对消息类型、允许/必需字段、字段重复、枚举和值类型及 Length/Data 配对生成 ValidationIssue。
 
 parse_group 使用调用方提供的 count tag、delimiter、成员顺序和最大条目数，要求 count 唯一、成员定义无歧义且实际成员范围与声明条目数一致，返回各条目字段及组后首个字段下标。当前组模型不支持嵌套递归组。
 

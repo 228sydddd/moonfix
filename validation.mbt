@@ -194,7 +194,7 @@ pub fn validate_dictionary(dictionary : Dictionary) -> Array[ValidationIssue] {
         )
       }
     }
-    for group in definition.groups {
+    for i, group in definition.groups {
       if group.count_tag <= 0 ||
         group.delimiter_tag <= 0 ||
         group.max_entries <= 0 ||
@@ -218,6 +218,16 @@ pub fn validate_dictionary(dictionary : Dictionary) -> Array[ValidationIssue] {
           ),
         )
       }
+      if group_has_tag(group, group.count_tag) {
+        issues.push(
+          validation_issue(
+            InvalidDictionary,
+            group.count_tag,
+            -1,
+            "group count tag must not also be a member",
+          ),
+        )
+      }
       if !contains_int(definition.allowed_tags, group.count_tag) {
         issues.push(
           validation_issue(
@@ -227,6 +237,18 @@ pub fn validate_dictionary(dictionary : Dictionary) -> Array[ValidationIssue] {
             "group count tag must be allowed by its message",
           ),
         )
+      }
+      match find_field_definition(dictionary, group.count_tag) {
+        Some(field) if field.kind is IntegerValue => ()
+        Some(_) | None =>
+          issues.push(
+            validation_issue(
+              InvalidDictionary,
+              group.count_tag,
+              -1,
+              "group count tag must have an integer field definition",
+            ),
+          )
       }
       for tag in group.member_tags {
         if !contains_int(definition.allowed_tags, tag) ||
@@ -250,6 +272,42 @@ pub fn validate_dictionary(dictionary : Dictionary) -> Array[ValidationIssue] {
                 tag,
                 -1,
                 "group member tags must be unique",
+              ),
+            )
+          }
+        }
+      }
+      for j in (i + 1)..<definition.groups.length() {
+        let other = definition.groups[j]
+        if other.count_tag == group.count_tag {
+          issues.push(
+            validation_issue(
+              InvalidDictionary,
+              group.count_tag,
+              -1,
+              "group count tags must be unique within a message",
+            ),
+          )
+        }
+        if group_has_tag(group, other.count_tag) ||
+          group_has_tag(other, group.count_tag) {
+          issues.push(
+            validation_issue(
+              InvalidDictionary,
+              other.count_tag,
+              -1,
+              "group count tags must not overlap another group's members",
+            ),
+          )
+        }
+        for tag in group.member_tags {
+          if group_has_tag(other, tag) {
+            issues.push(
+              validation_issue(
+                InvalidDictionary,
+                tag,
+                -1,
+                "group member tags must not overlap within a message",
               ),
             )
           }

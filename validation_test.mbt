@@ -77,6 +77,26 @@ fn order_dictionary() -> @moonfix.Dictionary {
 }
 
 ///|
+fn order_dictionary_with_groups(
+  groups : Array[@moonfix.GroupDefinition],
+) -> @moonfix.Dictionary {
+  let base = order_dictionary()
+  {
+    version: base.version,
+    fields: base.fields,
+    messages: [
+      {
+        msg_type: "D",
+        name: "NewOrderSingle",
+        required_tags: [35, 11, 38, 54],
+        allowed_tags: [35, 11, 38, 54, 95, 96],
+        groups,
+      },
+    ],
+  }
+}
+
+///|
 test "dictionary validation accepts valid fields and length pairs" {
   let msg = @moonfix.message("FIX.4.4", [
     { tag: 35, value: "D", },
@@ -176,4 +196,41 @@ test "dictionary validator rejects unresolved references" {
   let issues = @moonfix.validate_dictionary(broken)
   assert_true(issues.length() > 0)
   assert_true(issues[0].code is @moonfix.InvalidDictionary)
+}
+
+///|
+test "dictionary rejects repeating groups with ambiguous tag ownership" {
+  let first : @moonfix.GroupDefinition = {
+    count_tag: 95,
+    delimiter_tag: 96,
+    member_tags: [96],
+    max_entries: 8,
+  }
+  let duplicate_count : @moonfix.GroupDefinition = {
+    count_tag: 95,
+    delimiter_tag: 96,
+    member_tags: [96],
+    max_entries: 4,
+  }
+  let duplicate_count_issues = @moonfix.validate_dictionary(
+    order_dictionary_with_groups([first, duplicate_count]),
+  )
+  assert_true(
+    duplicate_count_issues.any(i => {
+      i.code is @moonfix.InvalidDictionary && i.tag == 95
+    }),
+  )
+
+  let overlapping_member : @moonfix.GroupDefinition = {
+    count_tag: 11,
+    delimiter_tag: 96,
+    member_tags: [96],
+    max_entries: 4,
+  }
+  let overlap_issues = @moonfix.validate_dictionary(
+    order_dictionary_with_groups([first, overlapping_member]),
+  )
+  assert_true(
+    overlap_issues.any(i => i.code is @moonfix.InvalidDictionary && i.tag == 96),
+  )
 }
