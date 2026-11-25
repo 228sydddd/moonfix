@@ -106,6 +106,42 @@ pub fn start_test_request(
 }
 
 ///|
+/// Send a sequenced Heartbeat, optionally echoing a TestReqID.
+pub fn send_heartbeat(
+  state : SessionState,
+  test_request_id? : String? = None,
+) -> Result[SessionTransition, SessionError] {
+  if !(state.status is Active) {
+    return Err(
+      session_error(
+        InvalidTransition,
+        35,
+        "Heartbeat requires an active session",
+      ),
+    )
+  }
+  let extra : Array[Field] = []
+  match test_request_id {
+    None => ()
+    Some(value) if value.length() > 0 => extra.push({ tag: 112, value, })
+    Some(_) =>
+      return Err(
+        session_error(InvalidSessionField, 112, "TestReqID cannot be empty"),
+      )
+  }
+  let (action, next_outbound) = make_send_action(state, "0", extra)
+  let next = with_sequences(
+    state,
+    state.next_inbound_seq,
+    next_outbound,
+    state.status,
+    state.heartbeat_seconds,
+    state.pending_test_request,
+  )
+  Ok(session_transition(next, true, [action]))
+}
+
+///|
 /// Send Logout and terminate the local session, optionally including Text (58).
 pub fn send_logout(
   state : SessionState,

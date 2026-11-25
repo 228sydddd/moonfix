@@ -358,6 +358,52 @@ test "send_logout emits a sequenced Logout and terminates local state" {
 }
 
 ///|
+test "send_heartbeat emits an active-session message with optional TestReqID" {
+  let initial = match @moonfix.new_session_state("FIX.4.4", 1, 1) {
+    Ok(value) => value
+    Err(error) => fail(error.detail)
+  }
+  let active = match @moonfix.apply_inbound(initial, logon_message("1")) {
+    Ok(value) => value.state
+    Err(error) => fail(error.detail)
+  }
+  let transition = match
+    @moonfix.send_heartbeat(active, test_request_id=Some("probe-7")) {
+    Ok(value) => value
+    Err(error) => fail(error.detail)
+  }
+  let heartbeat = match transition.actions[0] {
+    @moonfix.SendMessage(message) => message
+    _ => fail("send_heartbeat must produce a Heartbeat")
+  }
+  assert_eq(heartbeat.fields[0].value, "0")
+  assert_eq(heartbeat.fields[1].value, active.next_outbound_seq.to_string())
+  assert_eq(heartbeat.fields[2].tag, 112)
+  assert_eq(heartbeat.fields[2].value, "probe-7")
+  assert_eq(transition.state.next_outbound_seq, active.next_outbound_seq + 1)
+}
+
+///|
+test "send_heartbeat rejects inactive sessions and empty TestReqID" {
+  let initial = match @moonfix.new_session_state("FIX.4.4", 1, 1) {
+    Ok(value) => value
+    Err(error) => fail(error.detail)
+  }
+  match @moonfix.send_heartbeat(initial) {
+    Ok(_) => fail("Heartbeat must require an active session")
+    Err(error) => assert_true(error.kind is @moonfix.InvalidTransition)
+  }
+  let active = match @moonfix.apply_inbound(initial, logon_message("1")) {
+    Ok(value) => value.state
+    Err(error) => fail(error.detail)
+  }
+  match @moonfix.send_heartbeat(active, test_request_id=Some("")) {
+    Ok(_) => fail("an explicitly empty TestReqID must be rejected")
+    Err(error) => assert_eq(error.tag, 112)
+  }
+}
+
+///|
 test "send_logout rejects inactive sessions and empty reason text" {
   let initial = match @moonfix.new_session_state("FIX.4.4", 1, 1) {
     Ok(value) => value
