@@ -329,3 +329,50 @@ test "session reducer rejects a mismatched BeginString before consuming sequence
   }
   assert_eq(state.next_inbound_seq, 1)
 }
+
+///|
+test "send_logout emits a sequenced Logout and terminates local state" {
+  let initial = match @moonfix.new_session_state("FIX.4.4", 1, 1) {
+    Ok(value) => value
+    Err(error) => fail(error.detail)
+  }
+  let active = match @moonfix.apply_inbound(initial, logon_message("1")) {
+    Ok(value) => value.state
+    Err(error) => fail(error.detail)
+  }
+  let transition = match
+    @moonfix.send_logout(active, text=Some("maintenance")) {
+    Ok(value) => value
+    Err(error) => fail(error.detail)
+  }
+  assert_true(transition.state.status is @moonfix.Terminated)
+  assert_eq(transition.state.next_outbound_seq, active.next_outbound_seq + 1)
+  let logout = match transition.actions[0] {
+    @moonfix.SendMessage(message) => message
+    _ => fail("send_logout must produce a Logout message")
+  }
+  assert_eq(logout.fields[0].value, "5")
+  assert_eq(logout.fields[1].value, active.next_outbound_seq.to_string())
+  assert_eq(logout.fields[2].tag, 58)
+  assert_eq(logout.fields[2].value, "maintenance")
+}
+
+///|
+test "send_logout rejects inactive sessions and empty reason text" {
+  let initial = match @moonfix.new_session_state("FIX.4.4", 1, 1) {
+    Ok(value) => value
+    Err(error) => fail(error.detail)
+  }
+  match @moonfix.send_logout(initial) {
+    Ok(_) => fail("Logout must require an active session")
+    Err(error) => assert_true(error.kind is @moonfix.InvalidTransition)
+  }
+  let active = match @moonfix.apply_inbound(initial, logon_message("1")) {
+    Ok(value) => value.state
+    Err(error) => fail(error.detail)
+  }
+  match @moonfix.send_logout(active, text=Some("")) {
+    Ok(_) => fail("provided empty reason text must be rejected")
+    Err(error) => assert_eq(error.tag, 58)
+  }
+}

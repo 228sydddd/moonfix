@@ -106,6 +106,38 @@ pub fn start_test_request(
 }
 
 ///|
+/// Send Logout and terminate the local session, optionally including Text (58).
+pub fn send_logout(
+  state : SessionState,
+  text? : String? = None,
+) -> Result[SessionTransition, SessionError] {
+  if !(state.status is Active) {
+    return Err(
+      session_error(InvalidTransition, 35, "Logout requires an active session"),
+    )
+  }
+  let extra : Array[Field] = []
+  match text {
+    None => ()
+    Some(value) if value.length() > 0 => extra.push({ tag: 58, value, })
+    Some(_) =>
+      return Err(
+        session_error(InvalidSessionField, 58, "Logout Text cannot be empty"),
+      )
+  }
+  let (action, next_outbound) = make_send_action(state, "5", extra)
+  let next = with_sequences(
+    state,
+    state.next_inbound_seq,
+    next_outbound,
+    Terminated,
+    state.heartbeat_seconds,
+    None,
+  )
+  Ok(session_transition(next, true, [action]))
+}
+
+///|
 fn session_error(
   kind : SessionErrorKind,
   tag : Int,

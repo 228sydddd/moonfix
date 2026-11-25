@@ -20,6 +20,8 @@ pub fn parse_group(Message, GroupDefinition) -> Result[GroupParse, CodecError]
 
 pub fn parse_message(String, limits? : ParseLimits) -> Result[Message, CodecError]
 
+pub fn send_logout(SessionState, text? : String?) -> Result[SessionTransition, SessionError]
+
 pub fn start_test_request(SessionState, String) -> Result[SessionTransition, SessionError]
 
 pub fn validate_dictionary(Dictionary) -> Array[ValidationIssue]
