@@ -197,25 +197,29 @@ fn expected_capture_sequence(
   before : Int,
   current : CaptureRecord,
 ) -> Int? {
-  let mut previous : Int? = None
+  let mut maximum : Int? = None
   let mut index = before - 1
   while index >= 0 {
     let record = records[index]
     if same_capture_session(record, current) {
       if record.reset_sequence_numbers {
-        return record.sequence_number.map(value => value + 1)
+        return match maximum {
+          Some(value) => Some(value + 1)
+          None => record.sequence_number.map(value => value + 1)
+        }
       }
       match record.sequence_number {
-        Some(value) => {
-          previous = Some(value + 1)
-          break
-        }
+        Some(value) =>
+          maximum = match maximum {
+            Some(existing) if existing > value => Some(existing)
+            _ => Some(value)
+          }
         None => ()
       }
     }
     index -= 1
   }
-  previous
+  maximum.map(value => value + 1)
 }
 
 ///|

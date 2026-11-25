@@ -86,6 +86,18 @@ test "capture distinguishes gaps duplicate retransmits and ordinary reordering" 
 }
 
 ///|
+test "capture high-water mark survives late messages" {
+  let wire = capture_test_message(1) +
+    capture_test_message(3) +
+    capture_test_message(2) +
+    capture_test_message(4)
+  let audit = @moonfix.audit_capture(wire)
+  assert_eq(audit.findings.length(), 2)
+  assert_true(audit.findings[0].code is @moonfix.CaptureSequenceGap)
+  assert_true(audit.findings[1].code is @moonfix.CaptureOutOfOrderSequence)
+}
+
+///|
 test "capture reports malformed frame and resynchronizes at next message" {
   let valid = capture_test_message(1)
   let corrupt = valid[0:valid.length() - 3].to_owned() + "999\u{1}"
