@@ -56,6 +56,13 @@ let transition = match @moonfix.apply_inbound(state, decoded) {
 let next_state = transition.state
 ```
 
+?????????????????
+
+```moonbit
+let heartbeat = @moonfix.send_heartbeat(next_state, test_request_id=Some("probe-1"))
+let resend = @moonfix.send_resend_request(next_state, 4, 0)
+```
+
 导出签名见 [`pkg.generated.mbti`](pkg.generated.mbti)。
 
 ## Capture CLI

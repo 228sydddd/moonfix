@@ -56,6 +56,13 @@ let transition = match @moonfix.apply_inbound(state, decoded) {
 let next_state = transition.state
 ```
 
+Active sessions can also produce sequence-managed protocol traffic:
+
+```moonbit
+let heartbeat = @moonfix.send_heartbeat(next_state, test_request_id=Some("probe-1"))
+let resend = @moonfix.send_resend_request(next_state, 4, 0)
+```
+
 Exported signatures are in [`pkg.generated.mbti`](pkg.generated.mbti).
 
 ## Capture CLI
@@ -64,6 +71,7 @@ From the project root:
 
 ```sh
 moon run cmd/main --target js -- examples/heartbeat.fix
+cat examples/heartbeat.fix | moon run cmd/main --target js -- -
 ```
 
 Each output line is a `message` or `finding` JSON object suitable for tools such as `jq`. Input is a text capture with SOH-delimited messages and optional CR/LF between messages, not a space-delimited dump. Node.js `node:fs` provides file access. Other targets can use the library API but are not supported by this file CLI.
