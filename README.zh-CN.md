@@ -56,7 +56,7 @@ let transition = match @moonfix.apply_inbound(state, decoded) {
 let next_state = transition.state
 ```
 
-?????????????????
+会话发送 API 也返回纯状态转换结果，不会自行发送网络消息：
 
 ```moonbit
 let heartbeat = @moonfix.send_heartbeat(next_state, test_request_id=Some("probe-1"))
