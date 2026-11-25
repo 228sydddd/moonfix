@@ -181,10 +181,57 @@ test "session reducer terminates on logout and rejects invalid logon heartbeat" 
   let invalid = @moonfix.message("FIX.4.4", [
     { tag: 35, value: "A", },
     { tag: 34, value: "1", },
+    { tag: 98, value: "0", },
     { tag: 108, value: "0", },
   ])
   match @moonfix.apply_inbound(state, invalid) {
     Ok(_) => fail("zero heartbeat must be rejected")
+    Err(error) => assert_true(error.kind is @moonfix.InvalidSessionField)
+  }
+  let missing_encrypt_method = @moonfix.message("FIX.4.4", [
+    { tag: 35, value: "A", },
+    { tag: 34, value: "1", },
+    { tag: 108, value: "30", },
+  ])
+  match @moonfix.apply_inbound(state, missing_encrypt_method) {
+    Ok(_) => fail("Logon without EncryptMethod must be rejected")
+    Err(error) => {
+      assert_true(error.kind is @moonfix.MissingSessionField)
+      assert_eq(error.tag, 98)
+    }
+  }
+  let unsupported_encrypt_method = @moonfix.message("FIX.4.4", [
+    { tag: 35, value: "A", },
+    { tag: 34, value: "1", },
+    { tag: 98, value: "1", },
+    { tag: 108, value: "30", },
+  ])
+  match @moonfix.apply_inbound(state, unsupported_encrypt_method) {
+    Ok(_) => fail("unsupported encrypted Logon must be rejected")
+    Err(error) => {
+      assert_true(error.kind is @moonfix.InvalidSessionField)
+      assert_eq(error.tag, 98)
+    }
+  }
+  let duplicate_encrypt_method = @moonfix.message("FIX.4.4", [
+    { tag: 35, value: "A", },
+    { tag: 34, value: "1", },
+    { tag: 98, value: "0", },
+    { tag: 98, value: "0", },
+    { tag: 108, value: "30", },
+  ])
+  match @moonfix.apply_inbound(state, duplicate_encrypt_method) {
+    Ok(_) => fail("duplicate EncryptMethod must be rejected")
+    Err(error) => assert_true(error.kind is @moonfix.InvalidSessionField)
+  }
+  let malformed_encrypt_method = @moonfix.message("FIX.4.4", [
+    { tag: 35, value: "A", },
+    { tag: 34, value: "1", },
+    { tag: 98, value: "none", },
+    { tag: 108, value: "30", },
+  ])
+  match @moonfix.apply_inbound(state, malformed_encrypt_method) {
+    Ok(_) => fail("non-numeric EncryptMethod must be rejected")
     Err(error) => assert_true(error.kind is @moonfix.InvalidSessionField)
   }
   let active = match @moonfix.apply_inbound(state, logon_message("1")) {

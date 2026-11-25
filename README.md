@@ -17,7 +17,7 @@ These workflows are derived from established FIX integration practices; they are
 - Ordered TagValue parsing and encoding with ASCII, field-count, size, `BodyLength`, terminator, and checksum checks.
 - Caller-supplied dictionary validation for message types, required/repeated tags, enumerations, value types, and Length/Data pairing.
 - Flat repeating-group parsing with delimiter, order, and entry-limit checks.
-- Pure state transitions for the implemented Logon/Logout, heartbeat/TestRequest, sequence-gap, ResendRequest, and SequenceReset branches, including distinct GapFill and Reset sequence handling.
+- Pure state transitions for the implemented Logon/Logout, heartbeat/TestRequest, sequence-gap, ResendRequest, and SequenceReset branches. Logon requires `EncryptMethod=0`; GapFill and Reset have distinct sequence handling.
 - Capture resynchronization, CR/LF separators between messages, sequence gap/duplicate/out-of-order findings, and deterministic JSONL output.
 - A Node.js file CLI: clean audit exits 0, findings exit 1, and usage errors exit 2.
 

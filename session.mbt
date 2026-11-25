@@ -328,6 +328,44 @@ pub fn apply_inbound(
           session_error(InvalidTransition, 35, "Logon is already complete"),
         )
       }
+      let encrypt_method_count = number_of_tag(input.fields, 98)
+      if encrypt_method_count == 0 {
+        return Err(
+          session_error(
+            MissingSessionField,
+            98,
+            "Logon must contain exactly one EncryptMethod",
+          ),
+        )
+      }
+      if encrypt_method_count > 1 {
+        return Err(
+          session_error(
+            InvalidSessionField,
+            98,
+            "Logon must not repeat EncryptMethod",
+          ),
+        )
+      }
+      match session_int(input, 98) {
+        Some(0) => ()
+        Some(_) =>
+          return Err(
+            session_error(
+              InvalidSessionField,
+              98,
+              "only EncryptMethod NONE_OTHER (0) is supported",
+            ),
+          )
+        None =>
+          return Err(
+            session_error(
+              InvalidSessionField,
+              98,
+              "EncryptMethod must be a nonnegative integer",
+            ),
+          )
+      }
       let heartbeat = match session_int(input, 108) {
         Some(value) if value > 0 && value <= 86_400 => value
         _ =>
