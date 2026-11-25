@@ -307,3 +307,25 @@ test "session reducer terminates on logout and rejects invalid logon heartbeat" 
   assert_true(ended.state.status is @moonfix.Terminated)
   assert_true(ended.actions[0] is @moonfix.PeerLoggedOut)
 }
+
+///|
+test "session reducer rejects a mismatched BeginString before consuming sequence" {
+  let state = match @moonfix.new_session_state("FIX.4.4", 1, 1) {
+    Ok(value) => value
+    Err(error) => fail(error.detail)
+  }
+  let wrong_version = @moonfix.message("FIX.4.2", [
+    { tag: 35, value: "A", },
+    { tag: 34, value: "1", },
+    { tag: 98, value: "0", },
+    { tag: 108, value: "30", },
+  ])
+  match @moonfix.apply_inbound(state, wrong_version) {
+    Ok(_) => fail("a different BeginString must not enter this session")
+    Err(error) => {
+      assert_true(error.kind is @moonfix.InvalidSessionField)
+      assert_eq(error.tag, 8)
+    }
+  }
+  assert_eq(state.next_inbound_seq, 1)
+}

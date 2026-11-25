@@ -207,6 +207,15 @@ pub fn apply_inbound(
       ),
     )
   }
+  if input.begin_string != state.begin_string {
+    return Err(
+      session_error(
+        InvalidSessionField,
+        8,
+        "message BeginString does not match the configured session version",
+      ),
+    )
+  }
   if number_of_tag(input.fields, 34) != 1 {
     return Err(
       session_error(
