@@ -25,6 +25,9 @@ pub fn parse_message(
       codec_error(InvalidField, 0, "first field must be BeginString (8)"),
     )
   }
+  if first.0.value.length() == 0 {
+    return Err(codec_error(InvalidField, 2, "BeginString cannot be empty"))
+  }
   let second = match read_field(wire, first.1, wire.length()) {
     Ok(value) => value
     Err(error) => return Err(error)

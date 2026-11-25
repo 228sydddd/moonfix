@@ -56,6 +56,15 @@ test "body length corruption is rejected" {
 }
 
 ///|
+test "empty BeginString is rejected even with valid framing" {
+  let wire = "8=\u{1}9=5\u{1}35=0\u{1}10=248\u{1}"
+  match @moonfix.parse_message(wire) {
+    Ok(_) => fail("BeginString must not be empty")
+    Err(error) => assert_true(error.kind is @moonfix.InvalidField)
+  }
+}
+
+///|
 test "reserved framing tags cannot be encoded as body fields" {
   match
     @moonfix.encode_message(
