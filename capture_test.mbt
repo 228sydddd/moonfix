@@ -3,9 +3,10 @@ fn capture_test_message(
   seq : Int,
   extra? : Array[@moonfix.Field] = [],
   sender? : String = "BUY",
+  message_type? : String = "0",
 ) -> String {
   let fields = [
-    @moonfix.Field::{ tag: 35, value: "0", },
+    @moonfix.Field::{ tag: 35, value: message_type, },
     @moonfix.Field::{ tag: 49, value: sender, },
     @moonfix.Field::{ tag: 56, value: "SELL", },
     @moonfix.Field::{ tag: 34, value: seq.to_string(), },
@@ -15,6 +16,49 @@ fn capture_test_message(
     Ok(wire) => wire
     Err(_) => ""
   }
+}
+
+///|
+test "capture Logon reset establishes a new directional sequence baseline" {
+  let wire = capture_test_message(12) +
+    capture_test_message(
+      1,
+      extra=[@moonfix.Field::{ tag: 141, value: "Y", }],
+      message_type="A",
+    ) +
+    capture_test_message(2)
+  let audit = @moonfix.audit_capture(wire)
+  assert_eq(audit.records.length(), 3)
+  assert_true(audit.records[1].reset_sequence_numbers)
+  assert_true(!audit.records[0].reset_sequence_numbers)
+  assert_eq(audit.findings.length(), 0)
+  let json = @moonfix.capture_audit_jsonl(audit)
+  assert_true(json.contains("\"reset_seq_num\":true"))
+}
+
+///|
+test "capture ignores Logon reset flags that do not establish sequence one" {
+  let wire = capture_test_message(12) +
+    capture_test_message(
+      3,
+      extra=[@moonfix.Field::{ tag: 141, value: "Y", }],
+      message_type="A",
+    )
+  let audit = @moonfix.audit_capture(wire)
+  assert_true(!audit.records[1].reset_sequence_numbers)
+  assert_eq(audit.findings.length(), 1)
+  assert_true(audit.findings[0].code is @moonfix.CaptureOutOfOrderSequence)
+}
+
+///|
+test "capture does not treat non-Logon reset tag as a session reset" {
+  let wire = capture_test_message(1, extra=[
+      @moonfix.Field::{ tag: 141, value: "Y", },
+    ]) +
+    capture_test_message(2)
+  let audit = @moonfix.audit_capture(wire)
+  assert_true(!audit.records[0].reset_sequence_numbers)
+  assert_eq(audit.findings.length(), 0)
 }
 
 ///|

@@ -32,6 +32,7 @@ pub(all) struct CaptureRecord {
   message_type : String
   sequence_number : Int?
   possible_duplicate : Bool
+  reset_sequence_numbers : Bool
   sender : String
   target : String
 }
@@ -105,6 +106,9 @@ fn capture_record(
     message_type: capture_field(message, 35).unwrap_or(""),
     sequence_number: capture_integer(message, 34),
     possible_duplicate: capture_field(message, 43) == Some("Y"),
+    reset_sequence_numbers: capture_field(message, 35) == Some("A") &&
+    capture_field(message, 141) == Some("Y") &&
+    capture_integer(message, 34) == Some(1),
     sender: capture_field(message, 49).unwrap_or(""),
     target: capture_field(message, 56).unwrap_or(""),
   }
@@ -198,6 +202,9 @@ fn expected_capture_sequence(
   while index >= 0 {
     let record = records[index]
     if same_capture_session(record, current) {
+      if record.reset_sequence_numbers {
+        return record.sequence_number.map(value => value + 1)
+      }
       match record.sequence_number {
         Some(value) => {
           previous = Some(value + 1)
@@ -248,6 +255,7 @@ fn append_record_findings(
   }
   match record.sequence_number {
     None => ()
+    Some(_) if record.reset_sequence_numbers => ()
     Some(actual) =>
       match expected_capture_sequence(records, record.message_index, record) {
         None => ()
@@ -497,6 +505,8 @@ fn json_record(record : CaptureRecord) -> String {
   json_string(record.message_type) +
   ",\"seq_num\":" +
   json_optional_int(record.sequence_number) +
+  ",\"reset_seq_num\":" +
+  (if record.reset_sequence_numbers { "true" } else { "false" }) +
   ",\"sender\":" +
   json_string(record.sender) +
   ",\"target\":" +

@@ -20,7 +20,7 @@ apply_inbound 是确定性状态转换：输入旧 SessionState 与一条消息�
 
 ## Capture 审计与 CLI
 
-`audit_capture` 从文本 capture 中恢复消息边界；允许消息间 CR/LF，遇损坏数据尝试向后重同步，并报告 framing 错误及可识别的序号缺口、重复和乱序。JSONL 的每行是 message 或 finding 对象。
+`audit_capture` 从文本 capture 中恢复消息边界；允许消息间 CR/LF，遇损坏数据尝试向后重同步，并报告 framing 错误及可识别的序号缺口、重复和乱序。仅当 `35=A`、`141=Y` 且 `34=1` 同时成立时，capture 审计才把该 Logon 识别为方向性序号基线重置；消息记录在 JSONL 中以 `reset_seq_num` 标记。JSONL 的每行是 message 或 finding 对象。
 
 Node.js CLI 读取一个文件，最大 64 MiB；无 finding 返回 0，有审计 finding 返回 1，用法错误返回 2。文件访问失败由 Node.js 报告。CLI 只处理文本 capture，不是网络客户端。
 

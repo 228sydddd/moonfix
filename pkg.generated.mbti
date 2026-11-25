@@ -64,6 +64,7 @@ pub(all) struct CaptureRecord {
   message_type : String
   sequence_number : Int?
   possible_duplicate : Bool
+  reset_sequence_numbers : Bool
   sender : String
   target : String
 }
