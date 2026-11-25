@@ -64,6 +64,7 @@ let next_state = transition.state
 
 ```sh
 moon run cmd/main --target js -- examples/heartbeat.fix
+cat examples/heartbeat.fix | moon run cmd/main --target js -- -
 ```
 
 每行输出一个 `message` 或 `finding` JSON 对象，可交给 `jq` 等工具处理。输入是 SOH 分隔的文本 capture，消息间可有 CR/LF，不是以空格分隔的 dump。文件访问由 Node.js `node:fs` 提供。其他目标可使用库 API，但该文件 CLI 不支持它们。

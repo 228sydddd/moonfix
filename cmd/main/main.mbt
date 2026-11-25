@@ -8,7 +8,11 @@ fn main {
     exit_process(2)
   } else {
     let path = args[0]
-    let wire = read_capture(path)
+    let wire = if path == "-" {
+      read_capture_stdin()
+    } else {
+      read_capture(path)
+    }
     let audit = @moonfix.audit_capture(wire)
     print_stdout(@moonfix.capture_audit_jsonl(audit))
     if audit.findings.length() > 0 {
@@ -26,6 +30,11 @@ extern "js" fn command_line_arguments() -> FixedArray[String] =
 #cfg(target="js")
 extern "js" fn read_capture(path : String) -> String =
   #| (path) => { const fs = require("node:fs"); const size = fs.statSync(path).size; if (size > 67108864) throw new Error("capture file exceeds 64 MiB limit"); return fs.readFileSync(path, "utf8"); }
+
+///|
+#cfg(target="js")
+extern "js" fn read_capture_stdin() -> String =
+  #| () => { const fs = require("node:fs"); const data = fs.readFileSync(0); if (data.length > 67108864) throw new Error("capture input exceeds 64 MiB limit"); return data.toString("utf8"); }
 
 ///|
 #cfg(target="js")
