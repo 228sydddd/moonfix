@@ -24,6 +24,8 @@ pub fn send_heartbeat(SessionState, test_request_id? : String?) -> Result[Sessio
 
 pub fn send_logout(SessionState, text? : String?) -> Result[SessionTransition, SessionError]
 
+pub fn send_resend_request(SessionState, Int, Int) -> Result[SessionTransition, SessionError]
+
 pub fn start_test_request(SessionState, String) -> Result[SessionTransition, SessionError]
 
 pub fn validate_dictionary(Dictionary) -> Array[ValidationIssue]

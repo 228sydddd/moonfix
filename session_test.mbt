@@ -404,6 +404,56 @@ test "send_heartbeat rejects inactive sessions and empty TestReqID" {
 }
 
 ///|
+test "send_resend_request emits inclusive and open-ended ranges" {
+  let initial = match @moonfix.new_session_state("FIX.4.4", 1, 1) {
+    Ok(value) => value
+    Err(error) => fail(error.detail)
+  }
+  let active = match @moonfix.apply_inbound(initial, logon_message("1")) {
+    Ok(value) => value.state
+    Err(error) => fail(error.detail)
+  }
+  let transition = match @moonfix.send_resend_request(active, 4, 0) {
+    Ok(value) => value
+    Err(error) => fail(error.detail)
+  }
+  let request = match transition.actions[0] {
+    @moonfix.SendMessage(message) => message
+    _ => fail("send_resend_request must produce a message")
+  }
+  assert_eq(request.fields[0].value, "2")
+  assert_eq(request.fields[2].tag, 7)
+  assert_eq(request.fields[2].value, "4")
+  assert_eq(request.fields[3].tag, 16)
+  assert_eq(request.fields[3].value, "0")
+  assert_eq(transition.state.next_outbound_seq, active.next_outbound_seq + 1)
+}
+
+///|
+test "send_resend_request rejects invalid ranges and inactive sessions" {
+  let initial = match @moonfix.new_session_state("FIX.4.4", 1, 1) {
+    Ok(value) => value
+    Err(error) => fail(error.detail)
+  }
+  match @moonfix.send_resend_request(initial, 1, 0) {
+    Ok(_) => fail("ResendRequest must require an active session")
+    Err(error) => assert_true(error.kind is @moonfix.InvalidTransition)
+  }
+  let active = match @moonfix.apply_inbound(initial, logon_message("1")) {
+    Ok(value) => value.state
+    Err(error) => fail(error.detail)
+  }
+  match @moonfix.send_resend_request(active, 0, 1) {
+    Ok(_) => fail("BeginSeqNo must be positive")
+    Err(error) => assert_eq(error.tag, 7)
+  }
+  match @moonfix.send_resend_request(active, 5, 4) {
+    Ok(_) => fail("EndSeqNo cannot precede BeginSeqNo")
+    Err(error) => assert_eq(error.tag, 7)
+  }
+}
+
+///|
 test "send_logout rejects inactive sessions and empty reason text" {
   let initial = match @moonfix.new_session_state("FIX.4.4", 1, 1) {
     Ok(value) => value

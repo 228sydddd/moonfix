@@ -142,6 +142,46 @@ pub fn send_heartbeat(
 }
 
 ///|
+/// Request retransmission of an inclusive sequence range; EndSeqNo zero means infinity.
+pub fn send_resend_request(
+  state : SessionState,
+  begin_sequence : Int,
+  end_sequence : Int,
+) -> Result[SessionTransition, SessionError] {
+  if !(state.status is Active) {
+    return Err(
+      session_error(
+        InvalidTransition,
+        35,
+        "ResendRequest requires an active session",
+      ),
+    )
+  }
+  if begin_sequence <= 0 || (end_sequence != 0 && end_sequence < begin_sequence) {
+    return Err(
+      session_error(
+        InvalidSessionField,
+        7,
+        "resend range needs a positive begin and zero or nondecreasing end",
+      ),
+    )
+  }
+  let (action, next_outbound) = make_send_action(state, "2", [
+    { tag: 7, value: begin_sequence.to_string(), },
+    { tag: 16, value: end_sequence.to_string(), },
+  ])
+  let next = with_sequences(
+    state,
+    state.next_inbound_seq,
+    next_outbound,
+    state.status,
+    state.heartbeat_seconds,
+    state.pending_test_request,
+  )
+  Ok(session_transition(next, true, [action]))
+}
+
+///|
 /// Send Logout and terminate the local session, optionally including Text (58).
 pub fn send_logout(
   state : SessionState,
