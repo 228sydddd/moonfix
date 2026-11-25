@@ -37,6 +37,19 @@ test "capture Logon reset establishes a new directional sequence baseline" {
 }
 
 ///|
+test "capture JSONL preserves PossDupFlag for downstream replay analysis" {
+  let wire = capture_test_message(
+    1,
+    extra=[@moonfix.Field::{ tag: 43, value: "Y", }],
+  )
+  let audit = @moonfix.audit_capture(wire)
+  assert_true(audit.records[0].possible_duplicate)
+  assert_true(
+    @moonfix.capture_audit_jsonl(audit).contains("\"possible_duplicate\":true"),
+  )
+}
+
+///|
 test "capture ignores Logon reset flags that do not establish sequence one" {
   let wire = capture_test_message(12) +
     capture_test_message(

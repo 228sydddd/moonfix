@@ -541,6 +541,8 @@ fn json_record(record : CaptureRecord) -> String {
   json_string(record.message_type) +
   ",\"seq_num\":" +
   json_optional_int(record.sequence_number) +
+  ",\"possible_duplicate\":" +
+  (if record.possible_duplicate { "true" } else { "false" }) +
   ",\"reset_seq_num\":" +
   (if record.reset_sequence_numbers { "true" } else { "false" }) +
   ",\"sender\":" +
