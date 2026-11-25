@@ -108,6 +108,15 @@ pub fn parse_group(
       if field.tag == definition.delimiter_tag && cursor != first_index {
         break
       }
+      if number_of_tag(entry_fields, field.tag) > 0 {
+        return Err(
+          codec_error(
+            GroupFieldUnexpected,
+            cursor,
+            "a group member cannot repeat within one entry",
+          ),
+        )
+      }
       let mut member_order = -1
       for order, tag in definition.member_tags {
         if tag == field.tag {
@@ -240,5 +249,25 @@ test "repeating group rejects ambiguous member definitions" {
   match parse_group(msg, duplicate_members) {
     Ok(_) => fail("member order must not contain duplicate tags")
     Err(error) => assert_true(error.kind is InvalidGroupCount)
+  }
+}
+
+///|
+test "repeating group rejects duplicate members within one entry" {
+  let msg = message("FIX.4.4", [
+    { tag: 453, value: "1", },
+    { tag: 448, value: "A", },
+    { tag: 447, value: "D", },
+    { tag: 447, value: "C", },
+  ])
+  let shape : GroupDefinition = {
+    count_tag: 453,
+    delimiter_tag: 448,
+    member_tags: [448, 447],
+    max_entries: 16,
+  }
+  match parse_group(msg, shape) {
+    Ok(_) => fail("duplicate non-delimiter group members must be rejected")
+    Err(error) => assert_true(error.kind is GroupFieldUnexpected)
   }
 }
