@@ -40,6 +40,7 @@ jobs:
           moon check cmd/main --target js --deny-warn
           moon build cmd/main --target js
           moon run cmd/main --target js -- examples/heartbeat.fix
+          cat examples/heartbeat.fix | moon run cmd/main --target js -- -
           invalid_capture="$(mktemp)"
           trap 'rm -f "$invalid_capture"' EXIT
           node -e 'const fs = require("node:fs"); const p = process.argv[1]; const b = fs.readFileSync("examples/heartbeat.fix"); const end = b.length - 2; b[end] = b[end] === 48 ? 49 : 48; fs.writeFileSync(p, b);' "$invalid_capture"
